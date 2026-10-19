@@ -126,4 +126,4 @@ HTML / CSS / JavaScript（ライブラリなし）
 ## 作成者
 
 <!-- 名前（GitHub ユーザー名） -->
-（名前）（kdt26aie40007-arch）
+堀内翔太（kdt26aie40007-arch）
