@@ -23,7 +23,16 @@
       <fieldset class="allergy-filter">
         <legend>アレルギーのある食材を選んでください（含むメニューは注文できなくなります）</legend>
         <div id="allergy-options" class="chips"></div>
+        <p class="note">
+          ※ 表示しているアレルゲンは特定原材料8品目です。大豆・ごまなどその他の食材は表示していません。<br>
+          ※ 同じ厨房で調理しているため、表示していないアレルゲンが混ざる可能性があります。ご心配な方は店員にお尋ねください。
+        </p>
       </fieldset>
+
+      <section class="ranking" aria-labelledby="ranking-heading">
+        <h3 id="ranking-heading">人気ランキング</h3>
+        <ol id="ranking-list" class="ranking-list"></ol>
+      </section>
 
       <div id="category-tabs" class="tabs" role="tablist"></div>
       <div id="menu-list" class="menu-grid"></div>

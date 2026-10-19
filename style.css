@@ -89,6 +89,26 @@ h2 { margin-top: 0; border-left: 6px solid var(--sun); padding-left: 0.5em; }
 }
 .chip:has(input:checked) { background: #fde2df; border-color: var(--danger); }
 
+.note { font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0 0.2rem; }
+
+/* 人気ランキング */
+.ranking {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+}
+.ranking h3 { margin: 0 0 0.3rem; font-size: 1rem; }
+.ranking-list { list-style: none; padding: 0; margin: 0; }
+.rank-line { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; }
+.rank { font-weight: bold; border-radius: 999px; padding: 0 0.6em; background: #eee3cf; white-space: nowrap; }
+.rank-1 { background: #f5c242; }
+.rank-2 { background: #d5d9de; }
+.rank-3 { background: #e3b48a; }
+.rank-name { flex: 1; }
+.rank-count { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
+
 /* タブ */
 .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
 .tab.is-active { background: var(--sun); border-color: var(--sun); color: #fff; font-weight: bold; }
@@ -173,3 +193,8 @@ h2 { margin-top: 0; border-left: 6px solid var(--sun); padding-left: 0.5em; }
 .history-time { margin: 0.5em 0 0; font-weight: bold; }
 .bill-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .bill-controls p { width: 100%; margin: 0; }
+.received { width: 100%; font-weight: bold; }
+.received-input { width: 9em; margin-left: 0.3em; padding: 0.3em; border: 1px solid var(--line); border-radius: 6px; }
+.receipt { border: 1px dashed var(--ok); border-radius: 8px; padding: 0.5rem 0.8rem; margin-bottom: 0.8rem; }
+.receipt p { margin: 0.2em 0; }
+.change { font-size: 1.2rem; }

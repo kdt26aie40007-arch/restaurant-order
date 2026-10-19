@@ -3,6 +3,9 @@
 const STORAGE_KEY = 'sunnyTable.orders';
 const MAX_QTY_PER_ITEM = 10;
 const NO_IMAGE = 'images/noimage.svg';
+const PAYMENT_KEY = 'sunnyTable.payments';
+const MAX_RECEIVED = 1000000;
+const RANKING_SIZE = 3;
 const MIN_TABLE = 1;
 const MAX_TABLE = 30;
 
@@ -67,6 +70,24 @@ function saveOrders(orders) {
   }
 }
 
+function loadPayments() {
+  try {
+    const data = JSON.parse(localStorage.getItem(PAYMENT_KEY));
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePayments(payments) {
+  try {
+    localStorage.setItem(PAYMENT_KEY, JSON.stringify(payments));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---------- アレルギー絞り込み ----------
 
 function renderAllergyFilter() {
@@ -77,6 +98,7 @@ function renderAllergyFilter() {
       if (input.checked) state.allergies.add(name);
       else state.allergies.delete(name);
       renderMenu();
+      renderRanking();
       renderCart();
     });
     return el('label', { className: 'chip' }, [input, name]);
@@ -302,7 +324,7 @@ function placeOrder() {
   }
 
   const order = {
-    id: Date.now().toString(36),
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     table,
     items: state.cart.map((l) => {
       const item = findItem(l.id);
@@ -324,6 +346,7 @@ function placeOrder() {
   state.payConfirming = false;
   renderCart();
   renderBill();
+  renderRanking();
   setCartMessage(`テーブル${table}番のご注文を承りました。`, true);
 }
 
@@ -354,11 +377,21 @@ function renderBill() {
 
   const controls = el('div', { className: 'bill-controls' });
   if (state.payConfirming) {
+    const received = el('input', { type: 'number', min: total, max: MAX_RECEIVED, step: 1, inputMode: 'numeric', className: 'received-input' });
+    const error = el('p', { className: 'message', role: 'alert' });
     const confirm = el('button', { type: 'button', className: 'primary', textContent: 'お会計を確定する' });
     const back = el('button', { type: 'button', textContent: '戻る' });
-    confirm.addEventListener('click', () => payTable(table, total));
+    confirm.addEventListener('click', () => {
+      error.textContent = payTable(table, total, received.value);
+    });
     back.addEventListener('click', () => { state.payConfirming = false; renderBill(); });
-    controls.append(el('p', { textContent: `合計 ${yen(total)} をお会計します。よろしいですか？` }), confirm, back);
+    controls.append(
+      el('p', { textContent: `合計 ${yen(total)} をお会計します。お預かり金額を入力してください。` }),
+      el('label', { className: 'received' }, ['お預かり金額 ¥', received]),
+      error,
+      confirm,
+      back,
+    );
   } else {
     const pay = el('button', { type: 'button', className: 'primary', textContent: 'お会計へ進む' });
     pay.addEventListener('click', () => { state.payConfirming = true; renderBill(); });
@@ -372,17 +405,78 @@ function renderBill() {
   );
 }
 
-function payTable(table, total) {
-  const orders = loadOrders().map((o) => (o.table === table && !o.paid ? { ...o, paid: true, paidAt: new Date().toISOString() } : o));
+// 会計できたら空文字、できなければエラーメッセージを返す
+function payTable(table, total, rawReceived) {
+  const text = String(rawReceived).trim();
+  if (!/^\d+$/.test(text)) return 'お預かり金額を整数で入力してください。';
+  const received = Number(text);
+  if (received < total) return `お預かり金額が ${yen(total - received)} 足りません。`;
+  if (received > MAX_RECEIVED) return `お預かり金額は ${yen(MAX_RECEIVED)} までです。`;
+
+  const paidAt = new Date().toISOString();
+  const orderIds = [];
+  const orders = loadOrders().map((o) => {
+    if (o.table !== table || o.paid) return o;
+    orderIds.push(o.id);
+    return { ...o, paid: true, paidAt };
+  });
+  const change = received - total;
+  const payments = loadPayments();
+  payments.push({ table, orderIds, total, received, change, paidAt });
+
+  if (!saveOrders(orders) || !savePayments(payments)) {
+    return '会計を保存できませんでした。ブラウザの設定を確認してください。';
+  }
   state.payConfirming = false;
-  if (!saveOrders(orders)) {
-    setCartMessage('会計を保存できませんでした。ブラウザの設定を確認してください。');
+  renderBill();
+  document.getElementById('bill').prepend(el('div', { className: 'receipt' }, [
+    el('p', { className: 'message is-ok', textContent: `テーブル${table}番のお会計が完了しました。ありがとうございました！` }),
+    el('p', { textContent: `合計 ${yen(total)}　お預かり ${yen(received)}` }),
+    el('p', { className: 'change' }, ['おつり ', el('strong', { textContent: yen(change) })]),
+  ]));
+  return '';
+}
+
+// ---------- 人気ランキング（注文データから集計） ----------
+
+// これまでの全注文から、注文数の多い料理を順に返す
+function popularItems(limit) {
+  const counts = new Map();
+  for (const order of loadOrders()) {
+    for (const i of order.items) counts.set(i.id, (counts.get(i.id) || 0) + i.qty);
+  }
+  return MENU
+    .filter((item) => counts.has(item.id))
+    .map((item) => ({ item, count: counts.get(item.id) }))
+    .sort((a, b) => b.count - a.count) // 同数のときは MENU の順
+    .slice(0, limit);
+}
+
+function renderRanking() {
+  const box = document.getElementById('ranking-list');
+  const ranking = popularItems(RANKING_SIZE);
+  if (ranking.length === 0) {
+    box.replaceChildren(el('li', { className: 'empty', textContent: 'まだ注文がありません。注文が入るとランキングが表示されます。' }));
     return;
   }
-  renderBill();
-  document.getElementById('bill').prepend(
-    el('p', { className: 'message is-ok', textContent: `テーブル${table}番 ${yen(total)} のお会計が完了しました。ありがとうございました！` }),
-  );
+  box.replaceChildren(...ranking.map(({ item, count }, index) => {
+    const conflicts = conflictAllergens(item);
+    const add = el('button', { type: 'button', className: 'small', textContent: '追加', disabled: conflicts.length > 0 });
+    add.setAttribute('aria-label', `${item.name}をカートに追加`);
+    add.addEventListener('click', () => {
+      const msg = addToCart(item.id, 1);
+      if (msg) setCartMessage(msg);
+    });
+    return el('li', { className: 'rank-line' }, [
+      el('span', { className: `rank rank-${index + 1}`, textContent: `${index + 1}位` }),
+      el('span', { className: 'rank-name' }, [
+        item.name,
+        conflicts.length ? el('small', { className: 'warning', textContent: ` ⚠ ${conflicts.join('・')}を含む` }) : null,
+      ]),
+      el('span', { className: 'rank-count', textContent: `${count}食` }),
+      add,
+    ]);
+  }));
 }
 
 // ---------- 初期化 ----------
@@ -394,6 +488,7 @@ function init() {
   renderAllergyFilter();
   renderTabs();
   renderMenu();
+  renderRanking();
   renderCart();
   renderBill();
 
