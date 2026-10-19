@@ -44,6 +44,7 @@ restaurant-order: 飲食店「サニーテーブル」のメニュー・オー�
 
 - `index.html`: 画面の骨組み。`menu.js` → `app.js` の順に読み込む。
 - `menu.js`: データだけを持つ（`STORE_NAME`, `ALLERGENS`, `CATEGORIES`, `MAIN_CATEGORIES`, `MENU`）。メニューの追加・変更はここだけで行う。
+- `images/`: 料理の画像。今は料理の id と同じ名前の SVG イラスト（`h1.svg` など）。写真に差し替えるときは画像をここに置き、`menu.js` の `image` のパスを書き換える。読み込めないときは `noimage.svg` を表示する。
 - `app.js`: `state`（カート・選択中アレルゲン・表示カテゴリ）を持ち、変化のたびに `render*` 関数で該当部分を描き直す。
 - 注文は localStorage のキー `sunnyTable.orders` に配列で保存する。
 

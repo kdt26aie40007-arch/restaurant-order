@@ -2,6 +2,7 @@
 
 const STORAGE_KEY = 'sunnyTable.orders';
 const MAX_QTY_PER_ITEM = 10;
+const NO_IMAGE = 'images/noimage.svg';
 const MIN_TABLE = 1;
 const MAX_TABLE = 30;
 
@@ -123,7 +124,14 @@ function renderMenuCard(item) {
     if (!error.textContent) qtyInput.value = 1;
   });
 
+  // 画像が見つからないときは代わりの画像を出す
+  const img = el('img', { className: 'menu-img', src: item.image || NO_IMAGE, alt: item.name, loading: 'lazy' });
+  img.addEventListener('error', () => {
+    if (!img.src.endsWith(NO_IMAGE)) img.src = NO_IMAGE;
+  }, { once: true });
+
   return el('article', { className: 'menu-card' + (blocked ? ' is-blocked' : '') }, [
+    img,
     el('div', { className: 'menu-card-head' }, [
       el('h3', { textContent: item.name }),
       item.recommended ? el('span', { className: 'badge', textContent: 'おすすめ' }) : null,
