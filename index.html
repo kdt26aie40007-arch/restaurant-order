@@ -29,6 +29,23 @@
         </p>
       </fieldset>
 
+      <section class="ranking for-you" aria-labelledby="for-you-heading">
+        <h3 id="for-you-heading">あなたへのおすすめ</h3>
+        <form id="for-you-form" class="for-you-form">
+          <label>年代
+            <select id="age-group">
+              <option value="">選んでください</option>
+            </select>
+          </label>
+          <label>性別（任意）
+            <select id="gender"></select>
+          </label>
+          <button type="submit" class="primary">おすすめを見る</button>
+        </form>
+        <p id="for-you-message" class="message" role="alert"></p>
+        <div id="for-you-result"></div>
+      </section>
+
       <section class="ranking" aria-labelledby="ranking-heading">
         <h3 id="ranking-heading">人気ランキング</h3>
         <ol id="ranking-list" class="ranking-list"></ol>

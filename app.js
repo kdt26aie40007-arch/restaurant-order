@@ -14,7 +14,15 @@ const state = {
   allergies: new Set(),        // 選択中のアレルゲン
   category: 'すべて',           // 表示中のカテゴリ
   payConfirming: false,        // 会計の確認表示中か
+  profile: null,               // あなたへのおすすめの入力 { ageId, genderId }
 };
+
+// あなたへのおすすめで、1品ずつ選ぶまとまり
+const FOR_YOU_GROUPS = [
+  { label: 'お食事', categories: MAIN_CATEGORIES },
+  { label: 'サイド・デザート', categories: ['サラダ・サイド', 'デザート'] },
+  { label: 'ドリンク', categories: ['ドリンク'] },
+];
 
 // ---------- 共通 ----------
 
@@ -99,6 +107,7 @@ function renderAllergyFilter() {
       else state.allergies.delete(name);
       renderMenu();
       renderRanking();
+      renderForYou();
       renderCart();
     });
     return el('label', { className: 'chip' }, [input, name]);
@@ -108,7 +117,7 @@ function renderAllergyFilter() {
 // ---------- カテゴリタブ ----------
 
 function renderTabs() {
-  const tabs = ['すべて', 'おすすめ', ...CATEGORIES];
+  const tabs = ['すべて', '店長のおすすめ', ...CATEGORIES];
   const box = document.getElementById('category-tabs');
   box.replaceChildren(...tabs.map((name) => {
     const button = el('button', {
@@ -156,7 +165,7 @@ function renderMenuCard(item) {
     img,
     el('div', { className: 'menu-card-head' }, [
       el('h3', { textContent: item.name }),
-      item.recommended ? el('span', { className: 'badge', textContent: 'おすすめ' }) : null,
+      item.recommended ? el('span', { className: 'badge', textContent: '店長おすすめ' }) : null,
     ]),
     el('p', { className: 'desc', textContent: item.description }),
     el('p', { className: 'allergens' },
@@ -174,7 +183,7 @@ function renderMenuCard(item) {
 function renderMenu() {
   const list = document.getElementById('menu-list');
   let items = MENU;
-  if (state.category === 'おすすめ') items = MENU.filter((i) => i.recommended);
+  if (state.category === '店長のおすすめ') items = MENU.filter((i) => i.recommended);
   else if (state.category !== 'すべて') items = MENU.filter((i) => i.category === state.category);
 
   list.replaceChildren(...items.map(renderMenuCard));
@@ -278,9 +287,13 @@ function pickSuggestion() {
     const dessert = MENU.filter((i) => i.category === 'デザート').sort((a, b) => b.recommended - a.recommended).find(ok);
     if (dessert) return { item: dessert, reason: '食後のデザートはいかがですか？' };
   }
+  if (inCart.length === 0 && state.profile) {
+    const pick = recommendFor(state.profile).map((p) => p.item).find(ok);
+    if (pick) return { item: pick, reason: 'あなたへのおすすめです。' };
+  }
   if (inCart.length === 0) {
     const pick = MENU.find((i) => i.recommended && ok(i));
-    if (pick) return { item: pick, reason: '本日のおすすめです。' };
+    if (pick) return { item: pick, reason: '店長のおすすめです。' };
   }
   return null;
 }
@@ -437,6 +450,113 @@ function payTable(table, total, rawReceived) {
   return '';
 }
 
+// ---------- あなたへのおすすめ（年代・性別から選ぶ） ----------
+
+// 料理の特徴ごとの点数を合計する
+function scoreItem(item, weights) {
+  return item.tags.reduce((sum, tag) => sum + (weights[tag] || 0), 0);
+}
+
+// 年代・性別から、お食事・サイドかデザート・ドリンクを1品ずつ選ぶ
+function recommendFor(profile) {
+  const age = AGE_GROUPS.find((a) => a.id === profile.ageId);
+  const gender = GENDERS.find((g) => g.id === profile.genderId) || GENDERS[0];
+  const weights = { ...age.weights };
+  for (const [tag, point] of Object.entries(gender.weights)) weights[tag] = (weights[tag] || 0) + point;
+
+  const picks = [];
+  for (const group of FOR_YOU_GROUPS) {
+    const best = MENU
+      .filter((item) => group.categories.includes(item.category))
+      .filter((item) => !conflictAllergens(item).length)
+      .filter((item) => age.id === 'kid' || !item.tags.includes('kids')) // お子さまメニューは12歳以下だけ
+      .map((item) => ({ item, score: scoreItem(item, weights) }))
+      .sort((a, b) => b.score - a.score)[0]; // 同点のときは MENU の順
+    if (!best) continue;
+
+    // 理由には、年代の点数がいちばん高い特徴を使う
+    const tag = [...best.item.tags].sort((a, b) => (age.weights[b] || 0) - (age.weights[a] || 0))[0];
+    const reason = best.score > 0 && age.weights[tag]
+      ? `${age.label}の方には、${TAG_LABELS[tag]}がおすすめです。`
+      : '定番の一品です。';
+    picks.push({ group: group.label, item: best.item, reason });
+  }
+  return picks;
+}
+
+function fillProfileSelects() {
+  document.getElementById('age-group').append(
+    ...AGE_GROUPS.map((a) => el('option', { value: a.id, textContent: a.label })),
+  );
+  document.getElementById('gender').append(
+    ...GENDERS.map((g) => el('option', { value: g.id, textContent: g.label })),
+  );
+}
+
+function showForYou(event) {
+  event.preventDefault();
+  const ageId = document.getElementById('age-group').value;
+  const genderId = document.getElementById('gender').value;
+  const message = document.getElementById('for-you-message');
+  if (!AGE_GROUPS.some((a) => a.id === ageId)) {
+    message.textContent = '年代を選んでください。';
+    return;
+  }
+  if (!GENDERS.some((g) => g.id === genderId)) {
+    message.textContent = '性別の選択が正しくありません。';
+    return;
+  }
+  message.textContent = '';
+  state.profile = { ageId, genderId };
+  renderForYou();
+  renderSuggestion();
+}
+
+function renderForYou() {
+  const box = document.getElementById('for-you-result');
+  if (!state.profile) {
+    box.replaceChildren(el('p', { className: 'empty', textContent: '年代（と性別）を選ぶと、あなたに合う料理を3品おすすめします。' }));
+    return;
+  }
+  const picks = recommendFor(state.profile);
+  if (picks.length === 0) {
+    box.replaceChildren(el('p', { className: 'empty', textContent: '選択中のアレルゲンを含まない料理が見つかりませんでした。' }));
+    return;
+  }
+
+  const list = el('ul', { className: 'ranking-list' }, picks.map(({ group, item, reason }) => {
+    const add = el('button', { type: 'button', className: 'small', textContent: '追加' });
+    add.setAttribute('aria-label', `${item.name}をカートに追加`);
+    add.addEventListener('click', () => {
+      const msg = addToCart(item.id, 1);
+      if (msg) setCartMessage(msg);
+    });
+    return el('li', { className: 'rank-line' }, [
+      el('span', { className: 'rank', textContent: group }),
+      el('span', { className: 'rank-name' }, [
+        `${item.name}（${yen(item.price)}）`,
+        el('small', { className: 'reason', textContent: reason }),
+      ]),
+      add,
+    ]);
+  }));
+
+  const total = picks.reduce((sum, p) => sum + p.item.price, 0);
+  const addAll = el('button', { type: 'button', className: 'primary', textContent: `3品まとめて追加（${yen(total)}）` });
+  if (picks.length < 3) addAll.textContent = `${picks.length}品まとめて追加（${yen(total)}）`;
+  addAll.addEventListener('click', () => {
+    for (const p of picks) {
+      const msg = addToCart(p.item.id, 1);
+      if (msg) {
+        setCartMessage(`${p.item.name}：${msg}`);
+        return;
+      }
+    }
+  });
+
+  box.replaceChildren(list, el('div', { className: 'for-you-actions' }, [addAll]));
+}
+
 // ---------- 人気ランキング（注文データから集計） ----------
 
 // これまでの全注文から、注文数の多い料理を順に返す
@@ -485,14 +605,17 @@ function init() {
   document.getElementById('store-name').textContent = STORE_NAME;
   document.title = `${STORE_NAME} メニュー・オーダー`;
 
+  fillProfileSelects();
   renderAllergyFilter();
   renderTabs();
   renderMenu();
   renderRanking();
+  renderForYou();
   renderCart();
   renderBill();
 
   document.getElementById('order-button').addEventListener('click', placeOrder);
+  document.getElementById('for-you-form').addEventListener('submit', showForYou);
   document.getElementById('table-number').addEventListener('input', () => {
     state.payConfirming = false;
     renderBill();
