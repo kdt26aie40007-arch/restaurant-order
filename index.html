@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>サニーテーブル メニュー・オーダー</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1 id="store-name">サニーテーブル</h1>
+    <p class="tagline">ファミリーレストラン メニュー・オーダー</p>
+    <label class="table-no">
+      テーブル番号
+      <input id="table-number" type="number" min="1" max="30" step="1" inputmode="numeric" placeholder="1〜30">
+    </label>
+  </header>
+
+  <main class="layout">
+    <section class="menu-area" aria-labelledby="menu-heading">
+      <h2 id="menu-heading">メニュー</h2>
+
+      <fieldset class="allergy-filter">
+        <legend>アレルギーのある食材を選んでください（含むメニューは注文できなくなります）</legend>
+        <div id="allergy-options" class="chips"></div>
+      </fieldset>
+
+      <div id="category-tabs" class="tabs" role="tablist"></div>
+      <div id="menu-list" class="menu-grid"></div>
+    </section>
+
+    <aside class="side">
+      <section class="panel" aria-labelledby="cart-heading">
+        <h2 id="cart-heading">カート</h2>
+        <ul id="cart-list" class="cart-list"></ul>
+        <p class="cart-total">合計 <span id="cart-total">¥0</span>（税込）</p>
+        <div id="suggestion" class="suggestion" hidden></div>
+        <p id="cart-message" class="message" role="alert"></p>
+        <button id="order-button" class="primary" type="button">注文する</button>
+      </section>
+
+      <section class="panel" aria-labelledby="bill-heading">
+        <h2 id="bill-heading">ご注文履歴・お会計</h2>
+        <div id="bill"></div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="menu.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
