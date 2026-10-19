@@ -371,7 +371,7 @@ function renderBill() {
     const time = new Date(o.orderedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
     return el('li', {}, [
       el('p', { className: 'history-time', textContent: `${time} のご注文` }),
-      el('ul', {}, o.items.map((i) => el('li', { textContent: `${i.name} × ${i.qty}　${yen(i.price * i.qty)}` }))),
+      el('ul', {}, o.items.map((i) => el('li', { textContent: `${i.name}　${i.qty}点　${yen(i.price * i.qty)}` }))),
     ]);
   }));
 
